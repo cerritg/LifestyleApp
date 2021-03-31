@@ -13,6 +13,7 @@ import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -26,10 +27,16 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 
+import com.amplifyframework.AmplifyException;
+import com.amplifyframework.auth.cognito.AWSCognitoAuthPlugin;
+import com.amplifyframework.core.Amplify;
+import com.amplifyframework.storage.s3.AWSS3StoragePlugin;
 import com.example.LifestyleApp.MasterList.MasterList;
 import com.example.LifestyleApp.StepCounter.OnSwipeTouchListener;
 import com.example.LifestyleApp.UserInfo.UserData;
 import com.example.LifestyleApp.UserInfo.UserInfoViewModel;
+
+import java.io.File;
 
 public class Home extends AppCompatActivity implements View.OnClickListener, SensorEventListener {
     Button moduleBtn;
@@ -57,6 +64,17 @@ public class Home extends AppCompatActivity implements View.OnClickListener, Sen
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home);
+
+
+        try {
+            Amplify.addPlugin(new AWSCognitoAuthPlugin());
+            Amplify.addPlugin(new AWSS3StoragePlugin());
+            Amplify.configure(getApplicationContext());
+            Log.i("AlpineApp-Login", "Initialized Amplify");
+        } catch (AmplifyException error) {
+            Log.e("AlpineApp-Login", "Could not initialize Amplify", error);
+        }
+
 
         moduleBtn = findViewById(R.id.moduleButton);
         moduleBtn.setOnClickListener(this);
@@ -195,13 +213,21 @@ public class Home extends AppCompatActivity implements View.OnClickListener, Sen
         }
     }
 
-//    @Override
-//    protected void onStop() {
-//        super.onStop();
-//        Alpine alpine = new Alpine();
-//
-//        alpine.uploadFile();
-//    }
+    @Override
+    protected void onStop() {
+        super.onStop();
+
+        File userInfo = new File("/data/data/com.example.myapplication/databases/userInfo.db");
+        File userInfo_shm = new File("/data/data/com.example.myapplication/databases/userInfo.db");
+        File userInfo_wal = new File("/data/data/com.example.myapplication/databases/userInfo.db");
+
+        Amplify.Storage.uploadFile(
+                "userInfo",
+                userInfo,
+                result -> Log.i("AlpineApp-userInfo", "Successfully uploaded: " + result.getKey()),
+                storageFailure -> Log.e("AlpineApp", "Upload failed", storageFailure)
+        );
+    }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {} // Ignore
